@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: octo-invention
+
+  profiles:
+    active: local
+
+server:
+  port: 8080
+
+file:
+  storage:
+    url: http://localhost:9000
+    accessKey: minioadmin
+    secretKey: minioadmin
+    bucket: octo-invention-files
+    upload:
+      maxSize: 10485760
+
+minio:
+  client:
+    url: ${file.storage.url}
+    accessKey: ${file.storage.accessKey}
+    secretKey: ${file.storage.secretKey}
+    bucket: ${file.storage.bucket}
+
+security:
+  basic:
+    username: admin
+    password: admin
+
+datasource:
+  url: jdbc:postgresql://localhost:5432/postgres
+  username: postgres
+  password: postgres
+
+jpa:
+  hibernate:
+    ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true

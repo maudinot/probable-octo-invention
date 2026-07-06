@@ -23,16 +23,15 @@ public class FileMetadataService {
 
     @Value("${file.storage.upload.maxSize:10485760}") private final long maxFileSize;
 
-    public void uploadFile(MultipartFile file, String operatorName) {
+    public FileMetadata uploadFile(MultipartFile file, String operatorName) {
             validateFile(file);
             String uploadDate = java.time.LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
             String url = "";
-            String type = "";
 
-            fileMetadataRepository.save(new FileMetadata(
+            FileMetadata saved = fileMetadataRepository.save(new FileMetadata(
                 file.getOriginalFilename(),
                 file.getSize(),
-                type,
+                file.getContentType(),
                 url,
                 null,
                 uploadDate,
@@ -40,6 +39,7 @@ public class FileMetadataService {
                 operatorName
             ));
             log.info("File uploaded - {} MB by {}", (double) file.getSize() / 1024 / 1024, operatorName);
+            return saved;
     }
 
     public FileMetadata getFileMetadata(Long id) {

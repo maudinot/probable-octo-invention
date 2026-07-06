@@ -30,8 +30,8 @@ public class FileRestController {
     @PostMapping(value = "/files", produces = "application/json")
     public ResponseEntity<?> uploadFile(@RequestParam User user, @RequestBody  MultipartFile file) {
         log.info("User {} tried to upload", user.getName());
-        fileMetadataService.uploadFile(file, user.getName());
-        return ResponseEntity.accepted().build();
+        FileMetadata uploadedFileMetadata = fileMetadataService.uploadFile(file, user.getName());
+        return ResponseEntity.accepted().body(uploadedFileMetadata.getUrl());
     }
 
     @GetMapping(value = "/files/{id}", produces = "application/json")

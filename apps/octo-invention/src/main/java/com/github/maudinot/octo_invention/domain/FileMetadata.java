@@ -15,7 +15,10 @@ import lombok.Setter;
 @NoArgsConstructor
 public class FileMetadata {
 
-    public FileMetadata(String name, Long size, String type, String url, String previewUrl, String uploadDate, String downloadDate, String operatorId) {
+    public static enum Status { PENDING, PROCESSING, READY, FAILED }
+
+    public FileMetadata(String name, Long size, String type, String url, String previewUrl,
+            String uploadDate, String downloadDate, String operatorId, String status) {
         this.name = name;
         this.size = size;
         this.type = type;
@@ -24,11 +27,12 @@ public class FileMetadata {
         this.uploadDate = uploadDate;
         this.downloadDate = downloadDate;
         this.operatorId = operatorId;
+        this.status = status != null ? status : Status.PENDING.toString();
     }
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Getter private Long id;
     
     @Column(nullable = false)
     @Getter @Setter private String name;
@@ -50,4 +54,10 @@ public class FileMetadata {
     
     @Column(length = 20)
     @Getter @Setter private String operatorId;
+    
+    @Column(nullable = false)
+    @Getter @Setter private String status;
+    
+    @Column(length = 200)
+    @Getter @Setter private String errorMessage;
 }

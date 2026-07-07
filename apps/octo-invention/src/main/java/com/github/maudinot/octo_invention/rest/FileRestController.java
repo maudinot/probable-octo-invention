@@ -14,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.github.maudinot.octo_invention.domain.FileMetadata;
 import com.github.maudinot.octo_invention.domain.User;
+import com.github.maudinot.octo_invention.service.AsyncFileUploadService;
 import com.github.maudinot.octo_invention.service.FileMetadataService;
 
 import lombok.RequiredArgsConstructor;
@@ -27,11 +28,14 @@ public class FileRestController {
 
     private final FileMetadataService fileMetadataService;
 
+    private final AsyncFileUploadService asyncFileUploadService;
+
     @PostMapping(value = "/files", produces = "application/json")
     public ResponseEntity<?> uploadFile(@RequestParam User user, @RequestBody  MultipartFile file) {
         log.info("User {} tried to upload", user.getName());
         FileMetadata uploadedFileMetadata = fileMetadataService.uploadFile(file, user.getName());
-        return ResponseEntity.accepted().body(uploadedFileMetadata.getUrl());
+        asyncFileUploadService.uploadFile(file, uploadedFileMetadata);
+        return ResponseEntity.accepted().body(uploadedFileMetadata);
     }
 
     @GetMapping(value = "/files/{id}", produces = "application/json")

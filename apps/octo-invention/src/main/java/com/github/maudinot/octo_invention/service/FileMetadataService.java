@@ -14,9 +14,9 @@ import com.github.maudinot.octo_invention.repository.FileMetadataRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FileMetadataService {
 
     private final FileMetadataRepository fileMetadataRepository;
@@ -24,22 +24,25 @@ public class FileMetadataService {
     @Value("${file.storage.upload.maxSize:10485760}") private final long maxFileSize;
 
     public FileMetadata uploadFile(MultipartFile file, String operatorName) {
-            validateFile(file);
-            String uploadDate = java.time.LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-            String url = "";
+        log.info("Processing file upload for user: {}", operatorName);
+        validateFile(file);
+        String uploadDate = java.time.LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        String url = "";
+        String status = "PENDING";
 
-            FileMetadata saved = fileMetadataRepository.save(new FileMetadata(
-                file.getOriginalFilename(),
-                file.getSize(),
-                file.getContentType(),
-                url,
-                null,
-                uploadDate,
-                null,
-                operatorName
-            ));
-            log.info("File uploaded - {} MB by {}", (double) file.getSize() / 1024 / 1024, operatorName);
-            return saved;
+        FileMetadata saved = fileMetadataRepository.save(new FileMetadata(
+            file.getOriginalFilename(),
+            file.getSize(),
+            file.getContentType(),
+            url,
+            null,
+            uploadDate,
+            null,
+            operatorName,
+            status
+        ));
+        log.info("File upload initiated - {} MB by {} (ID: {})", (double) file.getSize() / 1024 / 1024, operatorName, saved.getId());
+        return saved;
     }
 
     public FileMetadata getFileMetadata(Long id) {
@@ -49,7 +52,6 @@ public class FileMetadataService {
     public Collection<FileMetadata> getAllFiles() {
         return fileMetadataRepository.findAll();
     }
-
     
 
     private void validateFile(MultipartFile multipartFile){

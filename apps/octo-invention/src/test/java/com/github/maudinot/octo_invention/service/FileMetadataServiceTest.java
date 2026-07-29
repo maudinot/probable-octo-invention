@@ -52,6 +52,8 @@ class FileMetadataServiceTest {
         // Given
         String operatorName = "testuser";
         MultipartFile multipartFile = new MockMultipartFile("test", "test.png", "image/png", new byte[10]);
+        doReturn(new FileMetadata("test.png", 10L, "image/png", "", null, "", null, operatorName, "PENDING"))
+          .when(fileMetadataRepository).save(any(FileMetadata.class));
 
         // When
         fileMetadataService.uploadFile(multipartFile, operatorName);

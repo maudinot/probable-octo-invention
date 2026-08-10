@@ -23,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.github.maudinot.octo_invention.domain.FileMetadata;
+import com.github.maudinot.octo_invention.domain.RawFile;
 import com.github.maudinot.octo_invention.exception.FileValidationException;
 import com.github.maudinot.octo_invention.repository.FileMetadataRepository;
 import com.github.maudinot.octo_invention.repository.UserRepository;
@@ -51,12 +52,12 @@ class FileMetadataServiceTest {
     void testUploadFile_ShouldSaveMetadata() {
         // Given
         String operatorName = "testuser";
-        MultipartFile multipartFile = new MockMultipartFile("test", "test.png", "image/png", new byte[10]);
+        RawFile file = new RawFile(new byte[10], "test.png", "image/png", 10);
         doReturn(new FileMetadata("test.png", 10L, "image/png", "", null, "", null, operatorName, "PENDING"))
           .when(fileMetadataRepository).save(any(FileMetadata.class));
 
         // When
-        fileMetadataService.uploadFile(multipartFile, operatorName);
+        fileMetadataService.uploadFile(file, operatorName);
 
         // Then
         verify(fileMetadataRepository, times(1)).save(any(FileMetadata.class));
@@ -66,11 +67,10 @@ class FileMetadataServiceTest {
     void testUploadFile_ThrowExceptionIfFileSizeExceedsLimit() {
         // Given
         String operatorName = "testuser";
-        byte[] largeImage = new byte[101];
-        MultipartFile multipartFile = new MockMultipartFile("test", "test.png", "image/png", largeImage);
+        RawFile file = new RawFile(new byte[101], "test.png", "image/png", 101);
         // Then
         assertThrows(FileValidationException.class, () -> {
-            fileMetadataService.uploadFile(multipartFile, operatorName);
+            fileMetadataService.uploadFile(file, operatorName);
         });
     }
 
@@ -78,10 +78,10 @@ class FileMetadataServiceTest {
     void testUploadFile_ThrowExceptionIfNotSupportedImageType() {
         // Given
         String operatorName = "testuser";
-        MultipartFile multipartFile = new MockMultipartFile("test", "test.txt", "text/plain", new byte[10]);
+        RawFile file = new RawFile(new byte[10], "test.txt", "text/plain", 10);
         // Then
         assertThrows(FileValidationException.class, () -> {
-            fileMetadataService.uploadFile(multipartFile, operatorName);
+            fileMetadataService.uploadFile(file, operatorName);
         });
     }
 

@@ -6,9 +6,9 @@ import java.util.Collection;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.github.maudinot.octo_invention.domain.FileMetadata;
+import com.github.maudinot.octo_invention.domain.RawFile;
 import com.github.maudinot.octo_invention.exception.FileValidationException;
 import com.github.maudinot.octo_invention.repository.FileMetadataRepository;
 
@@ -30,7 +30,7 @@ public class FileMetadataService {
         this.maxFileSize = maxFileSize;
     }
 
-    public FileMetadata uploadFile(MultipartFile file, String operatorName) {
+    public FileMetadata uploadFile(RawFile file, String operatorName) {
         log.info("Processing file upload for user: {}", operatorName);
         validateFile(file);
         String uploadDate = java.time.LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
@@ -38,9 +38,9 @@ public class FileMetadataService {
         String status = "PENDING";
 
         FileMetadata saved = fileMetadataRepository.save(new FileMetadata(
-            file.getOriginalFilename(),
-            file.getSize(),
-            file.getContentType(),
+            file.filename(),
+            file.size(),
+            file.contentType(),
             url,
             null,
             uploadDate,
@@ -48,7 +48,7 @@ public class FileMetadataService {
             operatorName,
             status
         ));
-        log.info("File upload initiated - {} MB by {} (ID: {})", (double) file.getSize() / 1024 / 1024, operatorName, saved.getId());
+        log.info("File upload initiated - {} MB by {} (ID: {})", (double) file.size() / 1024 / 1024, operatorName, saved.getId());
         return saved;
     }
 
@@ -61,15 +61,15 @@ public class FileMetadataService {
     }
     
 
-    private void validateFile(MultipartFile multipartFile){
-        if (multipartFile == null) {
+    private void validateFile(RawFile file){
+        if (file == null) {
             throw new FileValidationException("File is null");
         }
-        if (multipartFile.getSize() > maxFileSize) {
+        if (file.size() > maxFileSize) {
             throw new FileValidationException("File is too large - max file size exceeded. Upload a smaller file.");
         }
-        
-        if (!isImage(multipartFile.getOriginalFilename())) {
+
+        if (!isImage(file.filename())) {
             throw new FileValidationException("File type is not valid - allowed types are: image/jpeg, image/png, image/gif, image/webp");
         }
     }

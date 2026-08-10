@@ -3,6 +3,7 @@ package com.github.maudinot.octo_invention.service;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,9 +20,15 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class FileMetadataService {
 
-    private final FileMetadataRepository fileMetadataRepository;
+    private FileMetadataRepository fileMetadataRepository;
 
-    @Value("${file.storage.upload.maxSize:10485760}") private final long maxFileSize;
+    @Value("${file.storage.upload.maxSize:10485760}") long maxFileSize;
+
+    @Autowired
+    public FileMetadataService(FileMetadataRepository fileMetadataRepository, @Value("${file.storage.upload.maxSize:10485760}") long maxFileSize) {
+        this.fileMetadataRepository = fileMetadataRepository;
+        this.maxFileSize = maxFileSize;
+    }
 
     public FileMetadata uploadFile(MultipartFile file, String operatorName) {
         log.info("Processing file upload for user: {}", operatorName);

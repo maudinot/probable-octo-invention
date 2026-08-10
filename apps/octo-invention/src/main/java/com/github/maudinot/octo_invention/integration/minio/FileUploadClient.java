@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
@@ -16,12 +17,13 @@ import lombok.extern.slf4j.Slf4j;
 
 @RequiredArgsConstructor
 @Slf4j
+@Service
 public class FileUploadClient {
 
-    @Value("${minio.client.url}") private final String url;
-    @Value("${minio.client.accessKey}") private final String accessKey;
-    @Value("${minio.client.secretKey}")  final String secretKey;
-    @Value("${minio.client.bucket}") private final String bucket;
+    @Value("${minio.client.url}") private String url;
+    @Value("${minio.client.accessKey}") private  String accessKey;
+    @Value("${minio.client.secretKey}") private String secretKey;
+    @Value("${minio.client.bucket}") private String bucket;
 
     public FileUploadResult uploadFile(MultipartFile file, long id) {
         try {

@@ -1,16 +1,23 @@
 package com.github.maudinot.octo_invention.integration.minio;
 
+import java.net.URI;
+
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.RestClient;
+
+import com.github.maudinot.octo_invention.domain.RawFile;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -18,32 +25,42 @@ import lombok.extern.slf4j.Slf4j;
 public class FileUploadClient {
 
     @Value("${minio.client.url}") private String url;
-    @Value("${minio.client.accessKey}") private  String accessKey;
+    @Value("${minio.client.accessKey}") private String accessKey;
     @Value("${minio.client.secretKey}") private String secretKey;
     @Value("${minio.client.bucket}") private String bucket;
 
-    public FileUploadResult uploadFile(com.github.maudinot.octo_invention.domain.RawFile file, long id) {
+    public FileUploadResult uploadFile(RawFile file, long id) {
         try {
             String filename = file.filename();
             String ext = getFileExtension(filename);
-            String uploadEndpoint = url + "/" + bucket + "/" + id + ext;
+            String key = id + ext;
 
-            RestClient restClient = RestClient.create();
-            ResponseEntity<Void> answer = restClient.put()
-                .uri(uploadEndpoint)
-                .body(file.bytes())
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .header(HttpHeaders.AUTHORIZATION, "Basic " + java.util.Base64.getEncoder().encodeToString((accessKey + ":" + secretKey).getBytes()))
-                .retrieve()
-                .toBodilessEntity();
-            log.info("File {} uploaded with code {}", filename, answer.getStatusCode());
-            return new FileUploadResult(true, null, uploadEndpoint);
-        } catch (HttpClientErrorException.Unauthorized | HttpClientErrorException.Forbidden e) {
-            log.error("Invalid credentials for upload to MinIO");
-            return new FileUploadResult(false, "Invalid credentials", null);
-        } catch (HttpServerErrorException e) {
-            log.error("Server error: {} - {}", e.getStatusCode(), e.getMessage());
-            return new FileUploadResult(false, "Server error", null);
+            URI endpointUri = URI.create(url);
+
+            try (S3Client s3Client = S3Client.builder()
+                    .endpointOverride(endpointUri)
+                    .region(Region.US_EAST_1)
+                    .forcePathStyle(true)
+                    .credentialsProvider(StaticCredentialsProvider.create(
+                            AwsBasicCredentials.create(accessKey, secretKey)))
+                    .build()) {
+                PutObjectRequest putRequest = PutObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(key)
+                    .build();
+
+                s3Client.putObject(putRequest,
+                    RequestBody.fromBytes(file.bytes()));
+
+                log.info("File {} uploaded to s3://{}/{}", filename, bucket, key);
+                return new FileUploadResult(true, null, url + "/" + bucket + "/" + key);
+            }
+        } catch (S3Exception e) {
+            log.error("S3 error uploading file: {} - {}", e.statusCode(), e.getMessage());
+            return new FileUploadResult(false, "S3 error: " + e.getMessage(), null);
+        } catch (AwsServiceException | SdkClientException e) {
+            log.error("Failed to upload file to S3", e);
+            return new FileUploadResult(false, "Failed to upload file: " + e.getMessage(), null);
         }
     }
 

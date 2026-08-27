@@ -58,6 +58,6 @@ public class FileMetadata {
     @Column(nullable = false)
     @Getter @Setter private String status;
     
-    @Column(length = 200)
+    @Column(length = 500)
     @Getter @Setter private String errorMessage;
 }

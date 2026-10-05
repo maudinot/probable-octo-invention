@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import com.github.maudinot.octo_invention.domain.RawFile;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -16,7 +17,9 @@ import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.BucketAlreadyExistsException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
 @RequiredArgsConstructor
@@ -67,5 +70,24 @@ public class FileUploadClient {
     private String getFileExtension(String filename) {
         int idx = filename.lastIndexOf(".");
         return idx > 0 ? filename.substring(idx + 1) : "";
+    }
+
+    @PostConstruct
+    public void init() {
+        URI endpointUri = URI.create(url);
+        try (S3Client s3Client = S3Client.builder()
+                .endpointOverride(endpointUri)
+                .region(Region.US_EAST_1)
+                .forcePathStyle(true)
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(accessKey, secretKey)))
+                .build()) {
+            s3Client.createBucket(CreateBucketRequest.builder().bucket(bucket).build());
+            log.info("Bucket {} ensured at {}", bucket, endpointUri);
+        } catch (BucketAlreadyExistsException e) {
+            log.info("Bucket {} already exists at {}", bucket, endpointUri);
+        } catch (S3Exception e) {
+            log.warn("Could not create bucket {} at {}: {}", bucket, endpointUri, e.getMessage());
+        }
     }
 }

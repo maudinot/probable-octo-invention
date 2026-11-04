@@ -54,7 +54,37 @@
   .auth-bar input { width: auto; margin-bottom: 0; }
   .auth-bar .val { font-size: .8rem; color: var(--muted); font-family: monospace; }
   .toggle-row { display: flex; align-items: center; gap: .4rem; font-size: .85rem; }
+  .toggle-row { display: flex; align-items: center; gap: .4rem; font-size: .85rem; }
   .toggle-row input[type=checkbox] { width: auto; flex: 0; margin: 0; }
+
+  /* Upload mode selector */
+  .upload-mode-toggle {
+    display: inline-flex; align-items: center; gap: .25rem; margin-bottom: .6rem;
+    background: #f3f4f6; border-radius: 6px; padding: 2px;
+  }
+  .upload-mode-toggle label {
+    display: inline-flex; align-items: center; gap: .25rem;
+    padding: .3rem .75rem; font-weight: 500; font-size: .82rem;
+    border-radius: 4px; cursor: pointer; transition: all .15s;
+    margin-bottom: 0; color: var(--muted);
+  }
+  .upload-mode-toggle label:has(input:checked) {
+    background: #fff; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.1);
+  }
+  .upload-mode-toggle input[type=radio] { display: none; }
+  .file-body textarea {
+    width: 100%; min-height: 60px; padding: .45rem; border: 1px solid var(--border);
+    border-radius: 4px; font-size: .82rem; font-family: monospace;
+    resize: vertical; margin-bottom: 0;
+  }
+  .file-body textarea[disabled] { opacity: .45; cursor: not-allowed; background: #f9fafb; }
+  .file-drop-label {
+    display: inline-block; padding: .3rem .6rem; border: 1px dashed var(--border);
+    border-radius: 4px; font-size: .78rem; color: var(--muted); margin-bottom: .6rem;
+    cursor: pointer; transition: border-color .15s;
+  }
+  .file-drop-label:has(input:hover) { border-color: var(--accent); }
+  .file-drop-label input { display: none; }
 </style>
 </head>
 <body>
@@ -106,13 +136,32 @@
         <span style="font-size:.7rem;color:var(--muted)">(auto Basic auth)</span>
       </div>
       <div class="card-body">
+        <div>
+          <label style="display:block;font-size:.75rem;font-weight:600;margin-bottom:.25rem;">Upload using:</label>
+          <div class="upload-mode-toggle">
+            <label>
+              <input type="radio" name="uploadMode" value="text" checked onchange="onModeChange()">
+              Text body
+            </label>
+            <label>
+              <input type="radio" name="uploadMode" value="file" onchange="onModeChange()">
+              Local file
+            </label>
+          </div>
+        </div>
         <div class="row">
           <div><label for="uploadFileName">X-FileName</label><input id="uploadFileName" type="text" value="test.txt"></div>
-          <input id="uploadBody" type="text" value="Hello, Octo!" placeholder="Raw body content (or paste JSON)">
         </div>
-        <div style="margin-bottom:.6rem;">
-          <label for="uploadFileInput">Or pick a local file:</label>
-          <input id="uploadFileInput" type="file" onchange="onFileSelect(this)">
+        <div id="textBodyArea" class="file-body" style="margin-bottom:.6rem;">
+          <label for="uploadBodyText">Body text</label>
+          <textarea id="uploadBodyText" class="file-body">Hello, Octo!</textarea>
+        </div>
+        <div id="fileBodyArea" class="file-body" style="margin-bottom:.6rem;display:none;">
+          <label for="uploadFileInput" class="file-drop-label">
+            Click to pick a file (or drag &amp; drop)
+            <input type="file" id="uploadFileInput" onchange="onFileSelect(this)">
+          </label>
+          <span id="selectedFileName" style="font-size:.8rem;color:var(--muted);margin-left:.5rem;"></span>
         </div>
         <button id="btnUpload" onclick="uploadFile()">Upload</button>
         <div id="uploadResp" class="response-area"><span class="status pending">idle</span></div>
@@ -272,39 +321,95 @@ async function downloadFile() {
   } catch (e) { setStatus(el, 'err', e.message); }
 }
 
+// — Upload state —
+let _selectedFile = null;
+
+// — Mode toggle —
+function onModeChange() {
+  const mode = document.querySelector('input[name="uploadMode"]:checked').value;
+  const textArea = $('textBodyArea');
+  const fileArea = $('fileBodyArea');
+  if (mode === 'text') {
+    textArea.style.display = 'block';
+    fileArea.style.display = 'none';
+  } else {
+    textArea.style.display = 'none';
+    fileArea.style.display = 'block';
+    // If no file selected yet, prompt user
+    if (!_selectedFile) {
+      $('selectedFileName').textContent = '(no file selected)';
+    }
+  }
+}
+
 // — Upload file —
 function onFileSelect(input) {
   if (!input.files.length) return;
-  const reader = new FileReader();
-  reader.onload = () => $('uploadBody').value = reader.result;
-  $('uploadFileName').value = input.files[0].name;
+  _selectedFile = input.files[0];
+  $('uploadFileName').value = _selectedFile.name;
+  $('selectedFileName').textContent = `${_selectedFile.name} (${(_selectedFile.size/1024).toFixed(1)} KB)`;
 }
+
+// Drag & drop support
+(function initDragDrop() {
+  const label = $('selectedFileName').parentElement;
+  ['dragenter','dragover'].forEach(evt => {
+    label.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); label.style.borderColor = 'var(--accent)'; });
+  });
+  ['dragleave','drop'].forEach(evt => {
+    label.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); label.style.borderColor = ''; });
+  });
+  label.addEventListener('drop', e => {
+    const files = e.dataTransfer.files;
+    if (files.length) {
+      _selectedFile = files[0];
+      $('uploadFileName').value = _selectedFile.name;
+      $('selectedFileName').textContent = `${_selectedFile.name} (${(_selectedFile.size/1024).toFixed(1)} KB)`;
+      // Switch to file mode
+      document.querySelector('input[name="uploadMode"][value="file"]').checked = true;
+      onModeChange();
+    }
+  });
+})();
 
 function btoaUnicode(s) {
   return btoa(unescape(encodeURIComponent(s)));
 }
 
 async function uploadFile() {
+  const mode = document.querySelector('input[name="uploadMode"]:checked').value;
+
+  let body, contentType;
+  if (mode === 'file') {
+    if (!_selectedFile) {
+      setStatus($('uploadResp'), 'err', 'Please select a file first.');
+      return;
+    }
+    body = _selectedFile;
+    contentType = _selectedFile.type || 'application/octet-stream';
+  } else {
+    body = $('uploadBodyText').value || '';
+    contentType = 'text/plain';
+  }
+
   const el = $('uploadResp');
   showStatus(el);
   try {
     const user = $('uploadUser').value;
     const pass = $('uploadPass').value;
     const auth = 'Basic ' + btoaUnicode(`${user}:${pass}`);
-    const body = $('uploadBody').value;
     const fileName = $('uploadFileName').value || 'upload';
     const res = await fetch(`http://${SERVER}/api/files`, {
       method: 'POST',
       headers: {
         'Authorization': auth,
         'X-FileName': fileName,
-        'Content-Type': 'text/plain'
+        'Content-Type': contentType
       },
       body: body
     });
     const bodyTag = res.ok ? JSON.stringify(await res.json(), null, 2) : await res.text();
     setStatus(el, res.ok ? (res.status === 202 ? 'ok (202)' : 'ok') : 'err', bodyTag);
-    // Refresh file list
     fetchFiles();
   } catch (e) { setStatus(el, 'err', e.message); }
 }

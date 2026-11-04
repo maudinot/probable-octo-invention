@@ -23,17 +23,15 @@ public class FileDownloadClient {
     @Value("${minio.client.secretKey}") private String secretKey;
     @Value("${minio.client.bucket}") private String bucket;
 
-    public FileDownloadResult downloadFile(String filename) {
+    public FileDownloadResult downloadFile(String url) {
         try {
-            String downloadEndpoint = url + "/" + bucket + "/" + filename;
-
             RestClient restClient = RestClient.create();
             ResponseEntity<String> answer = restClient.get()
-                .uri(downloadEndpoint)
+                .uri(url)
                 .header(HttpHeaders.AUTHORIZATION, "Basic " + java.util.Base64.getEncoder().encodeToString((accessKey + ":" + secretKey).getBytes()))
                 .retrieve()
                 .toEntity(String.class);
-            log.info("File {} downloaded with code {}", filename, answer.getStatusCode());
+            log.info("File {} downloaded with code {}", url, answer.getStatusCode());
             return new FileDownloadResult(answer.getBody().getBytes(), answer.getHeaders().getContentType());
         } catch (HttpClientErrorException.Unauthorized | HttpClientErrorException.Forbidden e) {
             log.error("Invalid credentials for download to MinIO");

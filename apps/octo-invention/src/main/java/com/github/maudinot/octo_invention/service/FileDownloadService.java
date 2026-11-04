@@ -26,6 +26,6 @@ public class FileDownloadService {
                 throw new ResourceNotFoundException("File not ready for download");
             }
 
-            return fileDownloadClient.downloadFile(metadata.getName());
+            return fileDownloadClient.downloadFile(metadata.getUrl());
         }
 }

@@ -26,7 +26,7 @@ public class AsyncFileUploadService {
         long fileId = metadata.getId();
         log.info("Starting async upload for file ID: {}", fileId);
         FileUploadResult result = fileUploadClient.uploadFile(file, fileId);
-        
+
         if (result.success()) {
             metadata.setStatus(FileMetadata.Status.READY.toString());
             metadata.setUrl(result.uploadUrl());

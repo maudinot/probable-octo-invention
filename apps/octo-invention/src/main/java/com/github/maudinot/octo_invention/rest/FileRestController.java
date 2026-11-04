@@ -12,17 +12,16 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.servlet.http.HttpServletRequest;
-
 import com.github.maudinot.octo_invention.domain.FileMetadata;
+import com.github.maudinot.octo_invention.domain.RawFile;
 import com.github.maudinot.octo_invention.domain.User;
 import com.github.maudinot.octo_invention.integration.minio.FileDownloadResult;
 import com.github.maudinot.octo_invention.repository.UserRepository;
 import com.github.maudinot.octo_invention.service.AsyncFileUploadService;
 import com.github.maudinot.octo_invention.service.FileDownloadService;
 import com.github.maudinot.octo_invention.service.FileMetadataService;
-import com.github.maudinot.octo_invention.domain.RawFile;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -109,6 +108,7 @@ public class FileRestController {
             var m = fileMetadataService.getFileMetadata(id);
             return ResponseEntity.ok(m);
         } catch (Exception e) {
+            log.debug(e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }
@@ -116,9 +116,11 @@ public class FileRestController {
     @GetMapping(value = "/files/{id}/download")
     public ResponseEntity<?> getFile(@PathVariable("id") Long id) {
         try {
+            log.debug("Received request to dowload file {}", id);
             FileDownloadResult downloadedFile = fileDownloadService.downloadFile(id);
             return ResponseEntity.ok().header("Content-Type", downloadedFile.type().getType()).body(downloadedFile.data());
         } catch (Exception e) {
+            log.debug(e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }

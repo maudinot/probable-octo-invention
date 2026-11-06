@@ -28,7 +28,7 @@ public class FileDownloadClient {
     @Value("${minio.client.secretKey}") private String secretKey;
     @Value("${minio.client.bucket}") private String bucket;
 
-    public FileDownloadResult downloadFile(String fileUrl) {
+    public FileDownloadResult downloadFile(String fileUrl, String metadataType, String filename) {
         URI endpointUri = URI.create(url);
         String key = extractKey(fileUrl);
 
@@ -52,16 +52,30 @@ public class FileDownloadClient {
 
             // Read the response body
             byte[] data;
-            String contentType = response.contentType();
+
+            // Prefer metadata's type (stored at upload time) over S3 response type.
+            // S3/Minio may return application/octet-stream if content type wasn't set on upload.
+            String contentType;
+            if (metadataType != null && !metadataType.isEmpty()) {
+                contentType = metadataType;
+            } else {
+                contentType = response.contentType();
+            }
+
             if (contentType != null && !contentType.isEmpty()) {
+                // Minio/S3 may return a bare type like "application" without a subtype.
+                // MediaType.parseMediaType() is strict and requires the '/' separator.
+                if (!contentType.contains("/")) {
+                    contentType = contentType + "/octet-stream";
+                }
                 MediaType mediaType = MediaType.parseMediaType(contentType);
                 data = readResponse(responseStream);
                 log.info("File {} downloaded with content type {}", fileUrl, mediaType);
-                return new FileDownloadResult(data, mediaType);
+                return new FileDownloadResult(data, mediaType, filename);
             } else {
                 data = readResponse(responseStream);
                 log.info("File {} downloaded with default content type", fileUrl);
-                return new FileDownloadResult(data, MediaType.APPLICATION_OCTET_STREAM);
+                return new FileDownloadResult(data, MediaType.APPLICATION_OCTET_STREAM, filename);
             }
         } catch (S3Exception e) {
             log.error("S3 error downloading file: {} - {}", e.statusCode(), e.getMessage());

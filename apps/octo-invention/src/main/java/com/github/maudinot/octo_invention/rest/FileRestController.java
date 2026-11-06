@@ -109,9 +109,14 @@ public class FileRestController {
 
     @GetMapping(value = "/files/{id}/download")
     public ResponseEntity<?> getFile(@PathVariable("id") Long id) {
-        log.debug("Received request to dowload file {}", id);
+        log.debug("Received request to download file {}", id);
         FileDownloadResult downloadedFile = fileDownloadService.downloadFile(id);
-        return ResponseEntity.ok().contentType(downloadedFile.type()).body(downloadedFile.data());
+        ResponseEntity.BodyBuilder builder = ResponseEntity.ok()
+                .contentType(downloadedFile.type());
+        if (downloadedFile.filename() != null) {
+            builder.header("Content-Disposition", "attachment; filename=\"" + downloadedFile.filename() + "\"");
+        }
+        return builder.body(downloadedFile.data());
     }
 
     @GetMapping(value = "/files", produces = "application/json")

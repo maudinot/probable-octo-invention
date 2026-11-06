@@ -19,13 +19,16 @@ public class FileDownloadService {
 
     private final FileDownloadClient fileDownloadClient;
 
-     public FileDownloadResult downloadFile(long id) {
-            FileMetadata metadata = fileMetadataService.getFileMetadata(id);
+    public FileDownloadResult downloadFile(long id) {
+        FileMetadata metadata = fileMetadataService.getFileMetadata(id);
 
-            if(!"READY".equals(metadata.getStatus())) {
-                throw new ResourceNotFoundException("File not ready for download");
-            }
-
-            return fileDownloadClient.downloadFile(metadata.getUrl());
+        if (!"READY".equals(metadata.getStatus())) {
+            throw new ResourceNotFoundException("File not ready for download");
         }
+
+        // Use the original name from metadata as the download filename
+        String filename = metadata.getName();
+
+        return fileDownloadClient.downloadFile(metadata.getUrl(), metadata.getType(), filename);
+    }
 }

@@ -1,19 +1,24 @@
 package com.github.maudinot.octo_invention.integration.minio;
 
+import java.net.URI;
+import java.io.InputStream;
+
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.RestClient;
 
 import com.github.maudinot.octo_invention.exception.ResourceNotFoundException;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
-@RequiredArgsConstructor
 @Slf4j
 @Service
 public class FileDownloadClient {
@@ -23,22 +28,67 @@ public class FileDownloadClient {
     @Value("${minio.client.secretKey}") private String secretKey;
     @Value("${minio.client.bucket}") private String bucket;
 
-    public FileDownloadResult downloadFile(String url) {
-        try {
-            RestClient restClient = RestClient.create();
-            ResponseEntity<String> answer = restClient.get()
-                .uri(url)
-                .header(HttpHeaders.AUTHORIZATION, "Basic " + java.util.Base64.getEncoder().encodeToString((accessKey + ":" + secretKey).getBytes()))
-                .retrieve()
-                .toEntity(String.class);
-            log.info("File {} downloaded with code {}", url, answer.getStatusCode());
-            return new FileDownloadResult(answer.getBody().getBytes(), answer.getHeaders().getContentType());
-        } catch (HttpClientErrorException.Unauthorized | HttpClientErrorException.Forbidden e) {
-            log.error("Invalid credentials for download to MinIO");
-            throw new ResourceNotFoundException(e.getMessage(), e.getStatusCode().value());
-        } catch (HttpServerErrorException e) {
-            log.error("Server error: {} - {}", e.getStatusCode(), e.getMessage());
-            throw new ResourceNotFoundException(e.getMessage(), e.getStatusCode().value());
+    public FileDownloadResult downloadFile(String fileUrl) {
+        URI endpointUri = URI.create(url);
+        String key = extractKey(fileUrl);
+
+        log.debug("Downloading file from MinIO: bucket={}, key={}", bucket, key);
+
+        try (S3Client s3Client = S3Client.builder()
+                .endpointOverride(endpointUri)
+                .region(Region.US_EAST_1)
+                .forcePathStyle(true)
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(accessKey, secretKey)))
+                .build()) {
+
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(key)
+                    .build();
+
+            ResponseInputStream<GetObjectResponse> responseStream = s3Client.getObject(getObjectRequest);
+            GetObjectResponse response = responseStream.response();
+
+            // Read the response body
+            byte[] data;
+            String contentType = response.contentType();
+            if (contentType != null && !contentType.isEmpty()) {
+                MediaType mediaType = MediaType.parseMediaType(contentType);
+                data = readResponse(responseStream);
+                log.info("File {} downloaded with content type {}", fileUrl, mediaType);
+                return new FileDownloadResult(data, mediaType);
+            } else {
+                data = readResponse(responseStream);
+                log.info("File {} downloaded with default content type", fileUrl);
+                return new FileDownloadResult(data, MediaType.APPLICATION_OCTET_STREAM);
+            }
+        } catch (S3Exception e) {
+            log.error("S3 error downloading file: {} - {}", e.statusCode(), e.getMessage());
+            throw new ResourceNotFoundException(e.getMessage(), e.statusCode());
+        } catch (Exception e) {
+            log.error("Failed to download file: {}", e.getMessage());
+            throw new ResourceNotFoundException(e.getMessage(), 500);
         }
+    }
+
+    private byte[] readResponse(InputStream stream) throws java.io.IOException {
+        return stream.readAllBytes();
+    }
+
+    private String extractKey(String fileUrl) {
+        URI uri = URI.create(fileUrl);
+        String path = uri.getPath();
+
+        // URL format: http://localhost:9000/bucket/key
+        // e.g., http://localhost:9000/octo-invention-files/1.png
+        String bucketPrefix = "/" + this.bucket + "/";
+        if (path.startsWith(bucketPrefix)) {
+            return path.substring(bucketPrefix.length());
+        }
+
+        // Fallback: just use the last path segment
+        int lastSlash = path.lastIndexOf('/');
+        return lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
     }
 }

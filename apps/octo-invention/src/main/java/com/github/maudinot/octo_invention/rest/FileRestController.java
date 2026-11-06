@@ -76,7 +76,6 @@ public class FileRestController {
         }
 
         User user = userOpt.get();
-        // Plain-text comparison (passwords stored as-is for debugging)
         if (!passwordEncoder.matches(password, user.getPassword())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid password for user: " + username);
         }
@@ -104,25 +103,15 @@ public class FileRestController {
 
     @GetMapping(value = "/files/{id}", produces = "application/json")
     public ResponseEntity<?> getFileMetadata(@PathVariable("id") Long id) {
-        try {
-            var m = fileMetadataService.getFileMetadata(id);
-            return ResponseEntity.ok(m);
-        } catch (Exception e) {
-            log.debug(e.getMessage());
-            return ResponseEntity.notFound().build();
-        }
+        var m = fileMetadataService.getFileMetadata(id);
+        return ResponseEntity.ok(m);
     }
 
     @GetMapping(value = "/files/{id}/download")
     public ResponseEntity<?> getFile(@PathVariable("id") Long id) {
-        try {
-            log.debug("Received request to dowload file {}", id);
-            FileDownloadResult downloadedFile = fileDownloadService.downloadFile(id);
-            return ResponseEntity.ok().header("Content-Type", downloadedFile.type().getType()).body(downloadedFile.data());
-        } catch (Exception e) {
-            log.debug(e.getMessage());
-            return ResponseEntity.notFound().build();
-        }
+        log.debug("Received request to dowload file {}", id);
+        FileDownloadResult downloadedFile = fileDownloadService.downloadFile(id);
+        return ResponseEntity.ok().contentType(downloadedFile.type()).body(downloadedFile.data());
     }
 
     @GetMapping(value = "/files", produces = "application/json")
